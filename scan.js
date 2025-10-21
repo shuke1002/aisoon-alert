@@ -117,3 +117,8 @@ export default async function handler(req, res){
     res.status(500).json({ ok:false, error: String(e) });
   }
 }
+// 送信直前のところを以下に差し替え（api/scan.js）
+const text = lines.length
+  ? lines.join("\n")
+  : "📭 本日の押し目候補は 0 件でした";
+await sendDiscord(text);
