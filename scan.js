@@ -122,3 +122,44 @@ const text = lines.length
   ? lines.join("\n")
   : "📭 本日の押し目候補は 0 件でした";
 await sendDiscord(text);
+// --- 先頭か sendDiscord 定義部分をこれに置き換え ---
+async function sendDiscord(text) {
+  const url = process.env.DISCORD_WEBHOOK_URL;
+  if (!url) throw new Error('DISCORD_WEBHOOK_URL is not set');
+
+  // Discordは2000文字制限。余裕をみて1900に切る
+  const payload = { content: String(text).slice(0, 1900) };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  const body = await res.text();
+  console.log('discord webhook status =', res.status, 'body =', body);
+
+  // 成功は 204。204 以外は失敗として扱う
+  if (res.status !== 204) {
+    throw new Error(`Discord webhook error: ${res.status} ${body}`);
+  }
+}
+// --- ハンドラの送信直前にログ＋エラー処理を追加 ---
+export default async function handler(req, res) {
+  try {
+    // …スキャン処理（lines を作る）…
+
+    console.log('scan result count =', lines.length);
+
+    const text = lines.length
+      ? lines.join('\n')
+      : '📭 本日の押し目候補は 0 件でした';
+
+    await sendDiscord(text); // ← ここで204/エラーを必ずログ出力
+    return res.status(200).json({ ok: true, sent: true, count: lines.length });
+
+  } catch (e) {
+    console.error('scan handler error:', e);
+    return res.status(500).json({ ok: false, error: String(e) });
+  }
+}
